@@ -1,0 +1,9 @@
+{
+  "name": "@erp/errors",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": { "@erp/shared": "*" },
+  "devDependencies": { "typescript": "^5.3.0" }
+}

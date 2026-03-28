@@ -1,0 +1,275 @@
+// ============================================================
+// @erp/database - Shared Prisma Schema
+// Master Data entities shared across all ERP modules
+// Module-specific schemas remain in each app's prisma/
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== Multi-Tenant ====================
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  tier      Tier     @default(BASIC)
+  isActive  Boolean  @default(true)
+  settings  Json     @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users          User[]
+  customers      Customer[]
+  products       Product[]
+  employees      Employee[]
+  suppliers      Supplier[]
+  warehouses     Warehouse[]
+  unitsOfMeasure UnitOfMeasure[]
+
+  @@map("tenants")
+}
+
+enum Tier {
+  BASIC
+  PRO
+  ENTERPRISE
+}
+
+// ==================== Users & Auth ====================
+
+model User {
+  id           String   @id @default(cuid())
+  email        String
+  name         String
+  role         UserRole @default(USER)
+  avatar       String?
+  isActive     Boolean  @default(true)
+  keycloakId   String?  @unique  // Keycloak SSO ID
+  tenantId     String
+  tenant       Tenant   @relation(fields: [tenantId], references: [id])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  auditLogs    AuditLog[]
+
+  @@unique([email, tenantId])
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  USER
+  VIEWER
+}
+
+// ==================== Master Data: Customer ====================
+
+model Customer {
+  id        String         @id @default(cuid())
+  code      String
+  name      String
+  email     String?
+  phone     String?
+  taxCode   String?
+  type      CustomerType   @default(COMPANY)
+  status    EntityStatus   @default(ACTIVE)
+  address   Json?
+  tenantId  String
+  tenant    Tenant         @relation(fields: [tenantId], references: [id])
+  createdBy String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  deletedAt DateTime?
+
+  @@unique([code, tenantId])
+  @@index([tenantId, status])
+  @@map("customers")
+}
+
+enum CustomerType {
+  INDIVIDUAL
+  COMPANY
+}
+
+// ==================== Master Data: Product ====================
+
+model Product {
+  id          String       @id @default(cuid())
+  code        String
+  name        String
+  description String?
+  unit        String       @default("PCS")
+  category    String?
+  price       Decimal      @default(0) @db.Decimal(18, 4)
+  cost        Decimal      @default(0) @db.Decimal(18, 4)
+  status      EntityStatus @default(ACTIVE)
+  tenantId    String
+  tenant      Tenant       @relation(fields: [tenantId], references: [id])
+  createdBy   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+
+  @@unique([code, tenantId])
+  @@index([tenantId, status])
+  @@map("products")
+}
+
+// ==================== Master Data: Employee ====================
+
+model Employee {
+  id         String       @id @default(cuid())
+  code       String
+  name       String
+  email      String
+  phone      String?
+  department String?
+  position   String?
+  hireDate   DateTime
+  status     EntityStatus @default(ACTIVE)
+  tenantId   String
+  tenant     Tenant       @relation(fields: [tenantId], references: [id])
+  createdBy  String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  deletedAt  DateTime?
+
+  @@unique([code, tenantId])
+  @@unique([email, tenantId])
+  @@index([tenantId, status])
+  @@map("employees")
+}
+
+enum EntityStatus {
+  ACTIVE
+  INACTIVE
+  DISCONTINUED
+  TERMINATED
+}
+
+// ==================== Master Data: Supplier ====================
+
+model Supplier {
+  id              String       @id @default(cuid())
+  code            String
+  name            String
+  email           String?
+  phone           String?
+  taxCode         String?
+  bankAccount     String?
+  bankName        String?
+  address         Json?
+  contactPerson   String?
+  paymentTermDays Int          @default(30)
+  rating          Float?
+  status          EntityStatus @default(ACTIVE)
+  tenantId        String
+  tenant          Tenant       @relation(fields: [tenantId], references: [id])
+  createdBy       String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
+
+  @@unique([code, tenantId])
+  @@index([tenantId, status])
+  @@map("suppliers")
+}
+
+// ==================== Master Data: Warehouse ====================
+
+model Warehouse {
+  id        String       @id @default(cuid())
+  code      String
+  name      String
+  address   String?
+  managerId String?
+  status    EntityStatus @default(ACTIVE)
+  tenantId  String
+  tenant    Tenant       @relation(fields: [tenantId], references: [id])
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([code, tenantId])
+  @@index([tenantId])
+  @@map("warehouses")
+}
+
+// ==================== Master Data: Unit of Measure ====================
+
+model UnitOfMeasure {
+  id               String  @id @default(cuid())
+  code             String
+  name             String
+  description      String?
+  conversionFactor Float   @default(1.0)
+  baseUnitId       String?
+  tenantId         String
+  tenant           Tenant  @relation(fields: [tenantId], references: [id])
+  isActive         Boolean @default(true)
+
+  @@unique([code, tenantId])
+  @@map("units_of_measure")
+}
+
+// ==================== Master Data Change Log ====================
+
+model MasterDataChangeLog {
+  id           String   @id @default(cuid())
+  entity       String   // customer, product, employee, supplier
+  entityId     String
+  action       String   // create, update, delete, restore
+  changes      Json?    // { field: { old, new } }
+  sourceModule String   // hrm, crm, mrp, master-data
+  userId       String
+  tenantId     String
+  version      Int      @default(1)
+  createdAt    DateTime @default(now())
+
+  @@index([tenantId, entity, entityId])
+  @@index([tenantId, createdAt])
+  @@index([sourceModule])
+  @@map("master_data_change_log")
+}
+
+// ==================== Audit Log ====================
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  action     String   // CREATE, UPDATE, DELETE
+  entity     String   // Table name
+  entityId   String   // Record ID
+  changes    Json?    // { field: { old, new } }
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  tenantId   String
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, entity, entityId])
+  @@index([tenantId, createdAt])
+  @@map("audit_logs")
+}
+
+// ==================== Feature Flags ====================
+
+model FeatureFlag {
+  id           String   @id @default(cuid())
+  key          String   @unique
+  name         String
+  description  String?
+  enabledTiers Tier[]
+  isEnabled    Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("feature_flags")
+}
