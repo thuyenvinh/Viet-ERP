@@ -12,6 +12,14 @@ VietERP Platform là hệ sinh thái ERP toàn diện, đạt chuẩn doanh nghi
 
 VietERP Platform is a comprehensive, enterprise-grade ERP ecosystem built with modern web technologies. Designed specifically for the Vietnamese market with VAS accounting compliance (TT200), e-Invoice (NĐ123), social insurance, and bilingual Vi-En interface.
 
+### Screenshots
+
+![Hero — VietERP Landing Page](docs/screenshots/landing-hero.png)
+
+![Features — Platform capabilities](docs/screenshots/landing-features.png)
+
+![Stats — 1.4M+ LOC, 16 modules, 980 models](docs/screenshots/landing-stats.png)
+
 ## Quy mô dự án / Project Scale
 
 | Chỉ số / Metric | Giá trị / Value |
